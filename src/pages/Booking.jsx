@@ -78,6 +78,20 @@ export default function Booking() {
       duration: 2,
     },
   }
+  const openingHour = 8
+  const closingHour = 21
+  const serviceDuration = services[service].duration
+
+  const availableStartTimes = Array.from({ length: (closingHour - openingHour) * 2 + 1 }, (_, index) => {
+    const totalMinutes = openingHour * 60 + index * 30
+    const hour = String(Math.floor(totalMinutes / 60)).padStart(2, '0')
+    const minute = String(totalMinutes % 60).padStart(2, '0')
+    return `${hour}:${minute}`
+  }).filter((time) => {
+    const [hours, minutes] = time.split(':').map(Number)
+    const endTimeInHours = hours + minutes / 60 + serviceDuration
+    return endTimeInHours <= closingHour
+  })
 
   const calculateEndTime = () => {
     if (!formData.time) return 'A definir'
@@ -139,27 +153,33 @@ export default function Booking() {
                 <option>Home organization</option>
               </select>
 
-              <div className="border border-white/10 rounded-2xl p-4 bg-black">
-                <div className="flex items-center justify-between mb-4">
-                  <button type="button" onClick={handlePrevMonth} className="px-3 py-1 rounded-lg border border-white/20">←</button>
-                  <p className="capitalize text-lg">{monthLabel}</p>
+              <div className="border border-white/10 rounded-3xl p-4 sm:p-5 bg-black/70 backdrop-blur-sm">
+                <div className="flex items-center justify-between mb-4 sm:mb-5">
+                  <button
+                    type="button"
+                    onClick={handlePrevMonth}
+                    className="px-3 py-1 rounded-lg border border-white/20 transition hover:border-white/50 hover:bg-white/5"
+                  >
+                    ←
+                  </button>
+                  <p className="capitalize text-base sm:text-lg tracking-wide">{monthLabel}</p>
                   <button
                     type="button"
                     onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1))}
-                    className="px-3 py-1 rounded-lg border border-white/20"
+                    className="px-3 py-1 rounded-lg border border-white/20 transition hover:border-white/50 hover:bg-white/5"
                   >
                     →
                   </button>
                 </div>
-                <div className="grid grid-cols-7 text-center text-xs text-white/50 mb-2">
-                  {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((label, index) => (
+                <div className="grid grid-cols-7 text-center text-xs sm:text-sm text-white/55 mb-3">
+                  {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((label, index) => (
                     <span key={`${label}-${index}`}>{label}</span>
                   ))}
                 </div>
-                <div className="grid grid-cols-7 gap-2">
+                <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
                   {calendarDays.map((item) => {
                     if (item.isEmpty) {
-                      return <span key={item.key} className="h-10" />
+                      return <span key={item.key} className="h-10 sm:h-11" />
                     }
 
                     return (
@@ -168,11 +188,11 @@ export default function Booking() {
                         type="button"
                         disabled={item.isDisabled}
                         onClick={() => setFormData({ ...formData, selectedDate: item.date })}
-                        className={`h-10 rounded-lg border text-sm transition ${
+                        className={`h-10 sm:h-11 rounded-lg border text-sm transition-all duration-200 ${
                           item.isSelected
-                            ? 'bg-white text-black border-white'
-                            : 'border-white/10 hover:border-white/50'
-                        } ${item.isDisabled ? 'opacity-30 cursor-not-allowed' : ''}`}
+                            ? 'bg-[#d8b98c] text-black border-[#d8b98c] shadow-[0_0_0_1px_rgba(216,185,140,0.35)]'
+                            : 'border-white/10'
+                        } ${item.isDisabled ? 'opacity-30 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:border-white/50 hover:bg-white/5'}`}
                       >
                         {item.day}
                       </button>
@@ -192,33 +212,9 @@ export default function Booking() {
             className="w-full bg-black border border-white/10 rounded-2xl px-5 py-4 text-white"
           >
             <option value="">Seleccionar horario de comienzo</option>
-            <option value="08:00">08:00</option>
-            <option value="08:30">08:30</option>
-            <option value="09:00">09:00</option>
-            <option value="09:30">09:30</option>
-            <option value="10:00">10:00</option>
-            <option value="10:30">10:30</option>
-            <option value="11:00">11:00</option>
-            <option value="11:30">11:30</option>
-            <option value="12:00">12:00</option>
-            <option value="12:30">12:30</option>
-            <option value="13:00">13:00</option>
-            <option value="13:30">13:30</option>
-            <option value="14:00">14:00</option>
-            <option value="14:30">14:30</option>
-            <option value="15:00">15:00</option>
-            <option value="15:30">15:30</option>
-            <option value="16:00">16:00</option>
-            <option value="16:30">16:30</option>
-            <option value="17:00">17:00</option>
-            <option value="17:30">17:30</option>
-            <option value="18:00">18:00</option>
-            <option value="18:30">18:30</option>
-            <option value="19:00">19:00</option>
-            <option value="19:30">19:30</option>
-            <option value="20:00">20:00</option>
-            <option value="20:30">20:30</option>
-            <option value="21:00">21:00</option>
+            {availableStartTimes.map((time) => (
+              <option key={time} value={time}>{time}</option>
+            ))}
           </select>
 
               <select
