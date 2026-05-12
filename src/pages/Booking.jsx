@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import logo from '../assets/klar-logo.png'
 
@@ -6,46 +6,50 @@ export default function Booking() {
   const [confirmed, setConfirmed] = useState(false)
   const [service, setService] = useState('Limpieza regular')
 
+  const today = useMemo(() => {
+    const date = new Date()
+    date.setHours(0, 0, 0, 0)
+    return date
+  }, [])
+
+  const [visibleMonth, setVisibleMonth] = useState(
+    new Date(today.getFullYear(), today.getMonth(), 1),
+  )
+
   const [formData, setFormData] = useState({
-    month: '',
-    day: '',
+    selectedDate: null,
     time: '',
     zone: '',
     notes: '',
   })
+  const startDayOfMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1).getDay()
+  const daysInMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getDate()
+  const monthLabel = visibleMonth.toLocaleDateString('es-UY', { month: 'long' })
 
-  const currentYear = new Date().getFullYear()
-  const currentMonth = new Date().getMonth() + 1
-  const currentDay = new Date().getDate()
+  const calendarDays = [
+    ...Array.from({ length: startDayOfMonth }, (_, index) => ({ key: `empty-${index}`, isEmpty: true })),
+    ...Array.from({ length: daysInMonth }, (_, index) => {
+      const day = index + 1
+      const date = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), day)
+      date.setHours(0, 0, 0, 0)
 
-const months = [
-  { value: 1, label: 'Enero' },
-  { value: 2, label: 'Febrero' },
-  { value: 3, label: 'Marzo' },
-  { value: 4, label: 'Abril' },
-  { value: 5, label: 'Mayo' },
-  { value: 6, label: 'Junio' },
-  { value: 7, label: 'Julio' },
-  { value: 8, label: 'Agosto' },
-  { value: 9, label: 'Setiembre' },
-  { value: 10, label: 'Octubre' },
-  { value: 11, label: 'Noviembre' },
-  { value: 12, label: 'Diciembre' },
-]
+      return {
+        key: date.toISOString(),
+        day,
+        date,
+        isEmpty: false,
+        isDisabled: date < today,
+        isSelected:
+          formData.selectedDate && date.toDateString() === formData.selectedDate.toDateString(),
+      }
+    }),
+  ]
 
-const availableMonths = months.filter((month) => month.value >= currentMonth)
-
-const daysInMonth = formData.month
-  ? new Date(currentYear, formData.month, 0).getDate()
-  : 31
-
-const availableDays = Array.from({ length: daysInMonth }, (_, index) => index + 1).filter((day) => {
-  if (Number(formData.month) === currentMonth) {
-    return day >= currentDay
+  const handlePrevMonth = () => {
+    const previousMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1)
+    if (previousMonth < new Date(today.getFullYear(), today.getMonth(), 1)) return
+    setVisibleMonth(previousMonth)
   }
-
-  return true
-})
 
 
   const services = {
@@ -74,6 +78,20 @@ const availableDays = Array.from({ length: daysInMonth }, (_, index) => index + 
       duration: 2,
     },
   }
+  const openingHour = 8
+  const closingHour = 21
+  const serviceDuration = services[service].duration
+
+  const availableStartTimes = Array.from({ length: (closingHour - openingHour) * 2 + 1 }, (_, index) => {
+    const totalMinutes = openingHour * 60 + index * 30
+    const hour = String(Math.floor(totalMinutes / 60)).padStart(2, '0')
+    const minute = String(totalMinutes % 60).padStart(2, '0')
+    return `${hour}:${minute}`
+  }).filter((time) => {
+    const [hours, minutes] = time.split(':').map(Number)
+    const endTimeInHours = hours + minutes / 60 + serviceDuration
+    return endTimeInHours <= closingHour
+  })
 
   const calculateEndTime = () => {
     if (!formData.time) return 'A definir'
@@ -135,46 +153,52 @@ const availableDays = Array.from({ length: daysInMonth }, (_, index) => index + 
                 <option>Home organization</option>
               </select>
 
-              <div className="grid grid-cols-2 gap-4">
-                <select
-                  value={formData.month}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      month: e.target.value,
-                      day: '',
-                    })
-                  }
-                  className="w-full bg-black border border-white/10 rounded-2xl px-5 py-4 text-white"
-                >
-                  <option value="">Mes</option>
-
-                  {availableMonths.map((month) => (
-                    <option key={month.value} value={month.value}>
-                      {month.label}
-                    </option>
+              <div className="border border-white/10 rounded-3xl p-4 sm:p-5 bg-black/70 backdrop-blur-sm">
+                <div className="flex items-center justify-between mb-4 sm:mb-5">
+                  <button
+                    type="button"
+                    onClick={handlePrevMonth}
+                    className="px-3 py-1 rounded-lg border border-white/20 transition hover:border-white/50 hover:bg-white/5"
+                  >
+                    ←
+                  </button>
+                  <p className="capitalize text-base sm:text-lg tracking-wide">{monthLabel}</p>
+                  <button
+                    type="button"
+                    onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1))}
+                    className="px-3 py-1 rounded-lg border border-white/20 transition hover:border-white/50 hover:bg-white/5"
+                  >
+                    →
+                  </button>
+                </div>
+                <div className="grid grid-cols-7 text-center text-xs sm:text-sm text-white/55 mb-3">
+                  {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((label, index) => (
+                    <span key={`${label}-${index}`}>{label}</span>
                   ))}
-                </select>
+                </div>
+                <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+                  {calendarDays.map((item) => {
+                    if (item.isEmpty) {
+                      return <span key={item.key} className="h-10 sm:h-11" />
+                    }
 
-                <select
-                  value={formData.day}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      day: e.target.value,
-                    })
-                  }
-                  disabled={!formData.month}
-                  className="w-full bg-black border border-white/10 rounded-2xl px-5 py-4 text-white disabled:opacity-40"
-                >
-                  <option value="">Día</option>
-
-                  {availableDays.map((day) => (
-                    <option key={day} value={day}>
-                      {day}
-                    </option>
-                  ))}
-                </select>
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        disabled={item.isDisabled}
+                        onClick={() => setFormData({ ...formData, selectedDate: item.date })}
+                        className={`h-10 sm:h-11 rounded-lg border text-sm transition-all duration-200 ${
+                          item.isSelected
+                            ? 'bg-[#d8b98c] text-black border-[#d8b98c] shadow-[0_0_0_1px_rgba(216,185,140,0.35)]'
+                            : 'border-white/10'
+                        } ${item.isDisabled ? 'opacity-30 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:border-white/50 hover:bg-white/5'}`}
+                      >
+                        {item.day}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
           <select
@@ -188,33 +212,9 @@ const availableDays = Array.from({ length: daysInMonth }, (_, index) => index + 
             className="w-full bg-black border border-white/10 rounded-2xl px-5 py-4 text-white"
           >
             <option value="">Seleccionar horario de comienzo</option>
-            <option value="08:00">08:00</option>
-            <option value="08:30">08:30</option>
-            <option value="09:00">09:00</option>
-            <option value="09:30">09:30</option>
-            <option value="10:00">10:00</option>
-            <option value="10:30">10:30</option>
-            <option value="11:00">11:00</option>
-            <option value="11:30">11:30</option>
-            <option value="12:00">12:00</option>
-            <option value="12:30">12:30</option>
-            <option value="13:00">13:00</option>
-            <option value="13:30">13:30</option>
-            <option value="14:00">14:00</option>
-            <option value="14:30">14:30</option>
-            <option value="15:00">15:00</option>
-            <option value="15:30">15:30</option>
-            <option value="16:00">16:00</option>
-            <option value="16:30">16:30</option>
-            <option value="17:00">17:00</option>
-            <option value="17:30">17:30</option>
-            <option value="18:00">18:00</option>
-            <option value="18:30">18:30</option>
-            <option value="19:00">19:00</option>
-            <option value="19:30">19:30</option>
-            <option value="20:00">20:00</option>
-            <option value="20:30">20:30</option>
-            <option value="21:00">21:00</option>
+            {availableStartTimes.map((time) => (
+              <option key={time} value={time}>{time}</option>
+            ))}
           </select>
 
               <select
@@ -282,8 +282,11 @@ const availableDays = Array.from({ length: daysInMonth }, (_, index) => index + 
                 <span>Fecha</span>
 
                 <span className="text-white">
-                  {formData.day && formData.month
-                    ? `${formData.day}/${formData.month}/${currentYear}`
+                  {formData.selectedDate
+                    ? formData.selectedDate.toLocaleDateString('es-UY', {
+                      day: '2-digit',
+                      month: 'long',
+                    })
                     : 'A definir'}
                 </span>
               </div>
