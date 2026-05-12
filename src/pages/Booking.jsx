@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import logo from '../assets/klar-logo.png'
 
@@ -6,46 +6,50 @@ export default function Booking() {
   const [confirmed, setConfirmed] = useState(false)
   const [service, setService] = useState('Limpieza regular')
 
+  const today = useMemo(() => {
+    const date = new Date()
+    date.setHours(0, 0, 0, 0)
+    return date
+  }, [])
+
+  const [visibleMonth, setVisibleMonth] = useState(
+    new Date(today.getFullYear(), today.getMonth(), 1),
+  )
+
   const [formData, setFormData] = useState({
-    month: '',
-    day: '',
+    selectedDate: null,
     time: '',
     zone: '',
     notes: '',
   })
+  const startDayOfMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1).getDay()
+  const daysInMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getDate()
+  const monthLabel = visibleMonth.toLocaleDateString('es-UY', { month: 'long' })
 
-  const currentYear = new Date().getFullYear()
-  const currentMonth = new Date().getMonth() + 1
-  const currentDay = new Date().getDate()
+  const calendarDays = [
+    ...Array.from({ length: startDayOfMonth }, (_, index) => ({ key: `empty-${index}`, isEmpty: true })),
+    ...Array.from({ length: daysInMonth }, (_, index) => {
+      const day = index + 1
+      const date = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), day)
+      date.setHours(0, 0, 0, 0)
 
-const months = [
-  { value: 1, label: 'Enero' },
-  { value: 2, label: 'Febrero' },
-  { value: 3, label: 'Marzo' },
-  { value: 4, label: 'Abril' },
-  { value: 5, label: 'Mayo' },
-  { value: 6, label: 'Junio' },
-  { value: 7, label: 'Julio' },
-  { value: 8, label: 'Agosto' },
-  { value: 9, label: 'Setiembre' },
-  { value: 10, label: 'Octubre' },
-  { value: 11, label: 'Noviembre' },
-  { value: 12, label: 'Diciembre' },
-]
+      return {
+        key: date.toISOString(),
+        day,
+        date,
+        isEmpty: false,
+        isDisabled: date < today,
+        isSelected:
+          formData.selectedDate && date.toDateString() === formData.selectedDate.toDateString(),
+      }
+    }),
+  ]
 
-const availableMonths = months.filter((month) => month.value >= currentMonth)
-
-const daysInMonth = formData.month
-  ? new Date(currentYear, formData.month, 0).getDate()
-  : 31
-
-const availableDays = Array.from({ length: daysInMonth }, (_, index) => index + 1).filter((day) => {
-  if (Number(formData.month) === currentMonth) {
-    return day >= currentDay
+  const handlePrevMonth = () => {
+    const previousMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1)
+    if (previousMonth < new Date(today.getFullYear(), today.getMonth(), 1)) return
+    setVisibleMonth(previousMonth)
   }
-
-  return true
-})
 
 
   const services = {
@@ -135,46 +139,46 @@ const availableDays = Array.from({ length: daysInMonth }, (_, index) => index + 
                 <option>Home organization</option>
               </select>
 
-              <div className="grid grid-cols-2 gap-4">
-                <select
-                  value={formData.month}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      month: e.target.value,
-                      day: '',
-                    })
-                  }
-                  className="w-full bg-black border border-white/10 rounded-2xl px-5 py-4 text-white"
-                >
-                  <option value="">Mes</option>
-
-                  {availableMonths.map((month) => (
-                    <option key={month.value} value={month.value}>
-                      {month.label}
-                    </option>
+              <div className="border border-white/10 rounded-2xl p-4 bg-black">
+                <div className="flex items-center justify-between mb-4">
+                  <button type="button" onClick={handlePrevMonth} className="px-3 py-1 rounded-lg border border-white/20">←</button>
+                  <p className="capitalize text-lg">{monthLabel}</p>
+                  <button
+                    type="button"
+                    onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1))}
+                    className="px-3 py-1 rounded-lg border border-white/20"
+                  >
+                    →
+                  </button>
+                </div>
+                <div className="grid grid-cols-7 text-center text-xs text-white/50 mb-2">
+                  {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((label, index) => (
+                    <span key={`${label}-${index}`}>{label}</span>
                   ))}
-                </select>
+                </div>
+                <div className="grid grid-cols-7 gap-2">
+                  {calendarDays.map((item) => {
+                    if (item.isEmpty) {
+                      return <span key={item.key} className="h-10" />
+                    }
 
-                <select
-                  value={formData.day}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      day: e.target.value,
-                    })
-                  }
-                  disabled={!formData.month}
-                  className="w-full bg-black border border-white/10 rounded-2xl px-5 py-4 text-white disabled:opacity-40"
-                >
-                  <option value="">Día</option>
-
-                  {availableDays.map((day) => (
-                    <option key={day} value={day}>
-                      {day}
-                    </option>
-                  ))}
-                </select>
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        disabled={item.isDisabled}
+                        onClick={() => setFormData({ ...formData, selectedDate: item.date })}
+                        className={`h-10 rounded-lg border text-sm transition ${
+                          item.isSelected
+                            ? 'bg-white text-black border-white'
+                            : 'border-white/10 hover:border-white/50'
+                        } ${item.isDisabled ? 'opacity-30 cursor-not-allowed' : ''}`}
+                      >
+                        {item.day}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
           <select
@@ -282,8 +286,11 @@ const availableDays = Array.from({ length: daysInMonth }, (_, index) => index + 
                 <span>Fecha</span>
 
                 <span className="text-white">
-                  {formData.day && formData.month
-                    ? `${formData.day}/${formData.month}/${currentYear}`
+                  {formData.selectedDate
+                    ? formData.selectedDate.toLocaleDateString('es-UY', {
+                      day: '2-digit',
+                      month: 'long',
+                    })
                     : 'A definir'}
                 </span>
               </div>
